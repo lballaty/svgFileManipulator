@@ -2,100 +2,164 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Interactive SVG Pie Chart</title>
+    <title>Interactive SVG Pie Chart Generator</title>
     <style>
-        /* Basic styling for layout */
         body {
             font-family: Arial, sans-serif;
             display: flex;
             flex-direction: column;
             align-items: center;
-            margin-top: 50px;
+            margin-top: 20px;
         }
-        form {
-            margin-bottom: 30px;
+        #controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
         }
-        svg {
+        .slice-inputs {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 10px;
+        }
+        .slice-inputs label {
+            margin-right: 10px;
+        }
+        #pieChart {
             border: 1px solid #ccc;
+            margin-top: 20px;
+        }
+        #exportButton {
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
-    <h1>Interactive SVG Pie Chart</h1>
-    <form id="pieForm">
-        <label for="values">Enter comma-separated values:</label>
-        <input type="text" id="values" name="values" placeholder="e.g., 10,20,30" required>
-        <br><br>
-        <label for="colors">Enter comma-separated colors:</label>
-        <input type="text" id="colors" name="colors" placeholder="e.g., red,green,blue" required>
-        <br><br>
-        <button type="button" onclick="updateChart()">Update Chart</button>
-    </form>
-    <svg id="pieChart" width="300" height="300" viewBox="0 0 32 32"></svg>
+    <h1>Interactive SVG Pie Chart Generator</h1>
+    <div id="controls">
+        <label for="chartTitle">Chart Title:</label>
+        <input type="text" id="chartTitle" placeholder="Enter chart title" oninput="updateChart()">
+        <br>
+        <label for="sliceCount">Number of Slices:</label>
+        <input type="number" id="sliceCount" min="1" value="3" onchange="generateSliceInputs()">
+        <div id="sliceInputsContainer"></div>
+        <button onclick="updateChart()">Update Chart</button>
+    </div>
+    <svg id="pieChart" width="400" height="400" viewBox="-1.5 -1.5 3 3"></svg>
+    <button id="exportButton" onclick="exportSVG()">Export SVG</button>
 
     <script>
+        function generateSliceInputs() {
+            const sliceCount = document.getElementById('sliceCount').value;
+            const container = document.getElementById('sliceInputsContainer');
+            container.innerHTML = '';
+
+            for (let i = 0; i < sliceCount; i++) {
+                const sliceDiv = document.createElement('div');
+                sliceDiv.className = 'slice-inputs';
+
+                const labelInput = document.createElement('input');
+                labelInput.type = 'text';
+                labelInput.placeholder = `Label for slice ${i + 1}`;
+                labelInput.className = 'slice-label';
+
+                const valueInput = document.createElement('input');
+                valueInput.type = 'number';
+                valueInput.placeholder = `Value for slice ${i + 1}`;
+                valueInput.className = 'slice-value';
+
+                const colorInput = document.createElement('input');
+                colorInput.type = 'color';
+                colorInput.value = '#'+Math.floor(Math.random()*16777215).toString(16);
+                colorInput.className = 'slice-color';
+
+                sliceDiv.appendChild(labelInput);
+                sliceDiv.appendChild(valueInput);
+                sliceDiv.appendChild(colorInput);
+                container.appendChild(sliceDiv);
+            }
+        }
+
         function updateChart() {
-            // Get input values
-            const valuesInput = document.getElementById('values').value;
-            const colorsInput = document.getElementById('colors').value;
-
-            // Convert input strings to arrays
-            const values = valuesInput.split(',').map(Number);
-            const colors = colorsInput.split(',');
-
-            // Validate inputs
-            if (values.length !== colors.length) {
-                alert('The number of values must match the number of colors.');
-                return;
-            }
-            if (values.some(isNaN)) {
-                alert('Please enter valid numbers for values.');
-                return;
-            }
-
-            // Calculate total value
-            const total = values.reduce((acc, val) => acc + val, 0);
-
-            // Get the SVG element
             const svg = document.getElementById('pieChart');
             svg.innerHTML = ''; // Clear previous chart
 
-            // Variables to track drawing position
-            let cumulativePercent = 0;
-
-            // Function to convert percentage to SVG arc
-            function getCoordinatesForPercent(percent) {
-                const x = Math.cos(2 * Math.PI * percent);
-                const y = Math.sin(2 * Math.PI * percent);
-                return [x, y];
+            const chartTitle = document.getElementById('chartTitle').value;
+            if (chartTitle) {
+                const titleElement = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                titleElement.setAttribute('x', '0');
+                titleElement.setAttribute('y', '-1.2');
+                titleElement.setAttribute('text-anchor', 'middle');
+                titleElement.setAttribute('font-size', '0.2');
+                titleElement.textContent = chartTitle;
+                svg.appendChild(titleElement);
             }
 
-            // Loop through each value to create pie slices
+            const labels = Array.from(document.getElementsByClassName('slice-label')).map(input => input.value);
+            const values = Array.from(document.getElementsByClassName('slice-value')).map(input => parseFloat(input.value));
+            const colors = Array.from(document.getElementsByClassName('slice-color')).map(input => input.value);
+
+            if (values.some(isNaN) || values.some(value => value <= 0)) {
+                alert('Please enter valid positive numbers for all slice values.');
+                return;
+            }
+
+            const total = values.reduce((acc, val) => acc + val, 0);
+            let cumulativePercent = 0;
+
             values.forEach((value, index) => {
                 const [startX, startY] = getCoordinatesForPercent(cumulativePercent);
-
-                // Update cumulative percent
                 cumulativePercent += value / total;
-
                 const [endX, endY] = getCoordinatesForPercent(cumulativePercent);
-
-                // Determine if the arc should be large or small
                 const largeArcFlag = value / total > 0.5 ? 1 : 0;
 
-                // Create the path data for the slice
                 const pathData = [
-                    `M ${startX} ${startY}`, // Move to start point
-                    `A 1 1 0 ${largeArcFlag} 1 ${endX} ${endY}`, // Draw arc
-                    'L 0 0', // Draw line to center
+                    `M ${startX} ${startY}`,
+                    `A 1 1 0 ${largeArcFlag} 1 ${endX} ${endY}`,
+                    'L 0 0',
                 ].join(' ');
 
-                // Create a path element and set its attributes
                 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 path.setAttribute('d', pathData);
-                path.setAttribute('fill', colors[index].trim());
+                path.setAttribute('fill', colors[index]);
                 svg.appendChild(path);
+
+                const labelAngle = (cumulativePercent - value / total / 2) * 2 * Math.PI;
+                const labelX = 0.7 * Math.cos(labelAngle);
+                const labelY = 0.7 * Math.sin(labelAngle);
+
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', labelX);
+                text.setAttribute('y', labelY);
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('font-size', '0.1');
+                text.textContent = labels[index];
+                svg.appendChild(text);
             });
         }
-    </script>
-</body>
-</html>
+
+        function getCoordinatesForPercent(percent) {
+            const x = Math.cos(2 * Math.PI * percent);
+            const y = Math.sin(2 * Math.PI * percent);
+            return [x, y];
+        }
+
+        function exportSVG() {
+            const svg = document.getElementById('pieChart');
+            const serializer = new XMLSerializer();
+            const source = serializer.serializeToString(svg);
+            const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'pie_chart.svg';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        // Initialize with default slice inputs
+        generateSlice
+::contentReference[oaicite:0]{index=0}
+ 
