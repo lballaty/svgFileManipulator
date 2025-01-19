@@ -19,11 +19,15 @@
         }
         .slice-inputs {
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
+            align-items: center;
             margin-bottom: 10px;
         }
         .slice-inputs label {
             margin-right: 10px;
+        }
+        .slice-inputs input {
+            margin-right: 5px;
         }
         #pieChart {
             border: 1px solid #ccc;
@@ -160,6 +164,7 @@
         }
 
         // Initialize with default slice inputs
-        generateSlice
-::contentReference[oaicite:0]{index=0}
- 
+        generateSliceInputs();
+    </script>
+</body>
+</html>
